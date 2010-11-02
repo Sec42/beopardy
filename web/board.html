@@ -1,0 +1,223 @@
+<HTML><HEAD>
+<!-- vim:set ts=4 sw=4: -->
+<!-- $Id$ -->
+<TITLE></TITLE>
+<LINK REV="made" HREF="mailto:sec@42.org">
+<STYLE TYPE="text/css" MEDIA="screen">
+.ui {
+	display: none;
+}
+
+#reconnect {
+	position:		absolute;
+//	display:		none;
+	opacity:		0.8;
+	top:			0;
+	right:			0;
+	text-align:		center;
+	background-color: #e22;
+	z-index:		10000;
+};
+
+</STYLE>
+</HEAD>
+<BODY>
+<I>42.org, Homepages</I><HR>
+
+<div class="foo">
+All the UI elements go here:
+<div id="reconnect" class="ui">Disconnected</div>
+</div>
+
+<div id=canvas><!-- Stuff goes here --></div>
+
+
+<script type="text/javascript" src="jquery-1.4.2.min.js"></script>
+<script type = "text/javascript">
+
+var ws;
+// Create a table (CxP)
+
+function question(qid) {
+//	alert("qid:"+qid);
+	ws.send("question "+qid);
+}
+
+function mkBoard(boarddef,cats,players){
+	var nocats=5; // No. of categories
+	var nopts=5;  // No. of points
+
+	function clearNode(node){
+		while (node.hasChildNodes()){
+			node.removeChild(node.firstChild);
+		};
+	};
+
+	var canvas= document.getElementById('canvas');
+	if(!canvas)
+		throw("<div id=canvas> missing from HTML file.");
+	clearNode(canvas);
+	var object=document.createElement("div");
+	object.id="board";
+	canvas.appendChild(object);
+
+	var board=new Array;
+
+	for (var x = 0; x < nocats; x++) {
+		var btn=document.createElement("div");
+		btn.style.border="solid 1px black";
+		btn.style.float="left";
+		btn.style.width="19%";
+//		btn.style.height="9%";
+		btn.innerHTML=cats[x]; //"Cat "+(x+1);
+		object.appendChild(btn);
+	};
+	for (var y = 0; y < nopts; y++) {
+	  for (var x = 0; x < nocats; x++) {
+			var btn=document.createElement("div");
+			btn.style.border="solid 1px black";
+			btn.style.float="left";
+			btn.style.width="19%";
+			btn.style.height="9%";
+			btn.innerHTML=boarddef[x][y].score;
+		$(btn).bind("click",{x:x, y:y},function (evt){question(boarddef[evt.data.x][evt.data.y].qid)});
+			object.appendChild(btn);
+			if(y==0) board[x]=new Array();
+			board[x][y]=btn;
+	  };
+	};
+	for (var x = 0 ; x<3; x++){
+			var btn=document.createElement("div");
+			btn.style.border="solid 1px black";
+			btn.style.float="left";
+			btn.style.width="32%";
+			btn.style.height="9%";
+			btn.innerHTML="Ply"+x+players; //players[x];
+			object.appendChild(btn);
+	};
+
+	var end=document.createElement("br");
+	end.style.clear="both";
+	object.appendChild(end);
+}
+</script>
+
+<script type = "text/javascript">
+
+(function ($) { // VERTICALLY ALIGN FUNCTION
+ $.fn.vAlign = function() {
+ return this.each(function(i){
+	 var ah = $(this).height();
+	 var ph = $(this).parent().height();
+	 var mh = (ph - ah) / 2;
+	 $(this).css('margin-top', mh);
+	 });
+ };
+ })(jQuery);
+
+$(document).ready(function(){
+
+
+if ("WebSocket" in window) {
+	debug("Horray you have web sockets");
+	start();
+} else {
+	alert("You have no web sockets");
+};
+
+
+function start(){
+	debug("Trying to connect...");
+	ws = new WebSocket("ws://ice.42.org:8090/websession");
+
+	ws.onopen = function() {
+	// Web Socket is connected. You can send data by send() method.
+	debug("connected...");
+	ws.send("board");
+	};
+
+	run = function() {
+		var val=$("#i1").val(); // read the entry
+		$("#i1").val("");       // and clear it
+		ws.send(val);
+		return true;            // must do this
+	};
+
+	ws.onmessage = function (evt) {
+		var data = evt.data;
+		var i = data.indexOf("{");
+		if(data.slice(0,1)=="{"){
+			var result=JSON.parse(data);
+			if (result.board){
+				$("#out").html("Its a board");
+				mkBoard(result.board,result.categories,result.players);
+			}else if(result.question){
+				$("#out").html("Qstart");
+				var mask=document.createElement("div");
+				document.body.appendChild(mask);
+				$(mask).bind("click",function(){$(mask).hide()});
+				$(mask).css( {
+				position:	"absolute",
+				display:	"block",
+				opacity:	"0.9",
+				top:		"0",
+				left:		"0",
+				width:		"100%",
+				height:		"100%",
+				'text-align':		"center",
+				'background-color': '#eef',
+				'z-index':	"1000"});
+				var q=document.createElement("div");
+				mask.appendChild(q);
+				$(q).css({ align: "center",
+				"font-size": "60px"});
+				if(result.question.type == "image"){ // TODO: need preloading
+					$(q).html("<img src="+result.question.url+">");
+				}else{
+					$(q).html(result.question.text);
+				};
+				$(q).vAlign();
+				$("#out").html("Qend");
+			}else{
+				$("#out").html(JSON.stringify(result));
+			}
+		}else{
+			var i = data.indexOf("!");
+			var tag = data.slice(0,i);
+			var val = data.slice(i+1);
+			$("#" + tag).html(val);
+		};
+	};
+
+	ws.onclose = function() {
+		debug(" socket closed");
+		$("#reconnect")
+				.bind("click",function(){
+					start();
+					$("#reconnect").hide();
+					});
+		$("#reconnect").show();
+	};
+
+};
+
+function debug(str){
+	$("#debug").append("<p>" +  str);
+};
+
+
+});
+
+
+
+</script>
+<h2>In:</h2>
+<input id="i1" onchange="run()" size ="42">
+<h2>Out:</h2>
+<div id="out">Output should appear here</div>
+<h2>Debug:</h2>
+<div id="debug"></div>
+<HR>
+<!-- ADD -->
+</BODY>
+</HTML>
