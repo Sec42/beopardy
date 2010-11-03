@@ -1,0 +1,9 @@
+BPardy: Reimplementation of the Beopardy software.
+(c) Stefan `Sec` Zehl <sec@42.org> 2010
+
+- Client is HTML5/Javascript with WebSocket
+- Server is perl/POE
+
+Current status: 
+- Rudimentary proof of concept.
+- Needs an additional webserver for the Client.
