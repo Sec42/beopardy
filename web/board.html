@@ -4,43 +4,76 @@
 <TITLE></TITLE>
 <LINK REV="made" HREF="mailto:sec@42.org">
 <STYLE TYPE="text/css" MEDIA="screen">
-.ui {
+
+.ui > * {
 	display: none;
+	position: absolute;
 }
 
 #reconnect {
-	position:		absolute;
-//	display:		none;
 	opacity:		0.8;
 	top:			0;
 	right:			0;
 	text-align:		center;
 	background-color: #e22;
 	z-index:		10000;
-};
+}
+
+#buzzer {
+	opacity:		0.8;
+	bottom:			0;
+	right:			0;
+	text-align:		center;
+	background-color: #222;
+	z-index:		100;
+}
+
+#qmask {
+	opacity:    	0.9;
+	top:			0;
+	left:			0;
+	width:			100%;
+	height:			100%;
+	text-align:		center;
+	background-color: #eef;
+	z-index:		10;
+}
+#question {
+	display:		table-cell;
+	vertical-align:	middle;
+	align:			center;
+	font-size:		60px;
+}
 
 #noscript {
-	display: block;
-	font-size: large;
-	color: #f55;
-	padding: 10px;
-};
+	display:		block;
+	opacity:		0.8;
+	top:			0;
+	left:			0;
+	width:			85%;
+	font-size:		x-large;
+	text-align:		center;
+	margin:			1% 5%;
+	padding:		20px;
+	border:			2px solid black;
+	background-color: #c33;
+}
 
 </STYLE>
 </HEAD>
 <BODY>
-<I>42.org, Homepages</I><HR>
+<script type="text/javascript" src="jquery-1.4.2.min.js"></script>
 
-<div class="foo">
-All the UI elements go here:
-<div id="reconnect" class="ui">Disconnected</div>
-<div id="noscript" class="noui">Maybe Javascript is disabled?</div>
+<div class="ui">
+<h1>All the UI elements go here:</h1>
+<div id="reconnect">Disconnected</div>
+<div id="noscript">Javascript needs to be enabled. Sorry. :-(</div>
+<div id="buzzer">Buzzertext</div>
+<div id="qmask"><div id="question">text comes here</div></div>
 </div>
 
 <div id=canvas><!-- Stuff goes here --></div>
 
-
-<script type="text/javascript" src="jquery-1.4.2.min.js"></script>
 <script type = "text/javascript">
 $("#noscript").hide();
 
@@ -113,17 +146,6 @@ function mkBoard(boarddef,cats,players){
 
 <script type = "text/javascript">
 
-(function ($) { // VERTICALLY ALIGN FUNCTION
- $.fn.vAlign = function() {
- return this.each(function(i){
-	 var ah = $(this).height();
-	 var ph = $(this).parent().height();
-	 var mh = (ph - ah) / 2;
-	 $(this).css('margin-top', mh);
-	 });
- };
- })(jQuery);
-
 $(document).ready(function(){
 
 
@@ -154,7 +176,6 @@ function start(){
 
 	ws.onmessage = function (evt) {
 		var data = evt.data;
-		var i = data.indexOf("{");
 		if(data.slice(0,1)=="{"){
 			var result=JSON.parse(data);
 			if (result.board){
@@ -162,39 +183,23 @@ function start(){
 				mkBoard(result.board,result.categories,result.players);
 			}else if(result.question){
 				$("#out").html("Qstart");
-				var mask=document.createElement("div");
-				document.body.appendChild(mask);
+				var mask=$("#qmask");
+				// this has to be replaced with something better, later on
 				$(mask).bind("click",function(){$(mask).hide()});
-				$(mask).css( {
-				position:	"absolute",
-				display:	"block",
-				opacity:	"0.9",
-				top:		"0",
-				left:		"0",
-				width:		"100%",
-				height:		"100%",
-				'text-align':		"center",
-				'background-color': '#eef',
-				'z-index':	"1000"});
-				var q=document.createElement("div");
-				mask.appendChild(q);
-				$(q).css({ align: "center",
-				"font-size": "60px"});
-				if(result.question.type == "image"){ // TODO: need preloading
+
+				q=$("#question");
+				if(result.question.type == "image"){ // maybe preloading?
 					$(q).html("<img src="+result.question.url+">");
 				}else{
 					$(q).html(result.question.text);
 				};
-				$(q).vAlign();
+				$(mask).css("display","table");
 				$("#out").html("Qend");
 			}else{
 				$("#out").html(JSON.stringify(result));
 			}
 		}else{
-			var i = data.indexOf("!");
-			var tag = data.slice(0,i);
-			var val = data.slice(i+1);
-			$("#" + tag).html(val);
+			$("#out").html("It's not JSON, what's happening?");
 		};
 	};
 
