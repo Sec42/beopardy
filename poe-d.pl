@@ -8,6 +8,8 @@ use POE::Component::Server::HTTP;    # For the web interface.
 use POE::Component::Server::TCP;     # For the telnet interface.
 use POE::Filter::WebSocket;
 use POE::Wheel::ReadLine;     		 # For the cli interface.
+use Protocol::WebSocket::Handshake::Server; # WebSocket implementation
+use Protocol::WebSocket::Frame;
 use JSON;
 
 use Bpardy;
@@ -24,10 +26,10 @@ POE::Component::Server::HTTP->new(
 
 ### Start the websocket-server.
 POE::Component::Server::TCP->new( 
-# XXX: defaults to POE::Filter::Line w/ autodetect. Should fix it to \r\n
   Alias              => "ws_server",
   Port               => 8090,
   InlineStates       => {send => \&ws_handle_send},
+  ClientFilter		 => 'POE::Filter::Stream',
   ClientConnected    => \&ws_connected,
   ClientError        => \&ws_error,
   ClientDisconnected => \&ws_disconnected,
@@ -154,73 +156,51 @@ sub ws_error {
 }
 
 sub ws_input {
-  my ($client_host, $session, $input) = @_[KERNEL, SESSION, ARG0];
+  my ($client_host, $session, $chunk) = @_[KERNEL, SESSION, ARG0];
   my $session_id = $_[SESSION]->ID;
-  given($wsstate{$session_id}{state}){
-	  when("startup"){
-		  my ($get,$url,$proto)=split(/ /,$input);
-		  $wsstate{$session_id}{url}=$url;
-		  if($get ne "GET" || $proto ne "HTTP/1.1"){
-			  announce("broken WSConnect ($input)");
-			  $_[KERNEL]->yield("shutdown");
-		  };
-		  announce("WSConnect to $url");
-		  $wsstate{$session_id}{state}="headers";
-	  };
-	  when("headers"){
-		  if($input eq ""){ # End of Headers....
-			  if ($wsstate{$session_id}{hdr}{Upgrade} ne "WebSocket" ||
-			      $wsstate{$session_id}{hdr}{Connection} ne "Upgrade" ){
-				  announce("broken headers in WSConnect");
-				  $_[KERNEL]->yield("shutdown");
-			  };
-			  my $client=$_[HEAP]->{client}; # Who defines that?
+  $wsstate{$session_id}{hs} = Protocol::WebSocket::Handshake::Server->new
+	if (!defined $wsstate{$session_id}{hs});
+  my $hs=$wsstate{$session_id}{hs};
 
-			  $client->put("HTTP/1.1 101 Web Socket Protocol Handshake");
-			  $client->put("Upgrade: WebSocket");
-			  $client->put("Connection: Upgrade");
-			  $client->put("WebSocket-Origin: ".
-					  $wsstate{$session_id}{hdr}{Origin}
-			  );
-			  $client->put("WebSocket-Location: "."ws://".
-				  $wsstate{$session_id}{hdr}{Host}.
-				  $wsstate{$session_id}{url}
-			  );
-			  $client->put("");
+  if (!$hs->is_done) {
+	$hs->parse($chunk);
 
-			  $client->set_filter( POE::Filter::WebSocket->new() );
-			  $wsstate{$session_id}{state}="connected";
-		  }else{
-#			  announce("Header(".$session->ID."): $input");
-			  my ($hdr,$value)=split(/:\s+/,$input);
-			  $hdr=~y/a-zA-Z//cd;
-			  $wsstate{$session_id}{hdr}{$hdr}=$value;
-		  };
+	if ($hs->is_done) {
+	  $wsstate{$session_id}{frame}=Protocol::WebSocket::Frame->new;
+	  announce("WSConnect done.");
+	  $_[HEAP]{client}->put($hs->to_string);
+	}
+	return;
+  }
+
+  my $frame=$wsstate{$session_id}{frame};
+  $frame->append($chunk);
+
+  while (my $message = $frame->next) {
+#	  $_[HEAP]{client}->put($frame->new($message)->to_string);
+
+	# XXX: Maybe move to separate sub?
+	my $client=$_[HEAP]->{client};
+	announce("socketinput: $message");
+	my @cmd=split(/ /,$message);
+	given($cmd[0]){
+	  when("board"){
+		$client->put($frame->new(encode_json({
+			  board => $Bpardy::game->{board},
+			  categories => $Bpardy::game->{cats},
+			  players => $Bpardy::game->{names},
+			  }))->to_string);
+	  }
+	  when("question"){
+		$client->put($frame->new(
+			  encode_json({question =>Bpardy::ask($cmd[1])})
+			  )->to_string
+			);
 	  };
-	  when("connected"){ # XXX: Maybe move to separate sub?
-		  my $client=$_[HEAP]->{client};
-		  announce("socketinput: $input");
-		  my @cmd=split(/ /,$input);
-		  given($cmd[0]){
-			  when("board"){
-				  $client->put(encode_json({
-							  board => $Bpardy::game->{board},
-							  categories => $Bpardy::game->{cats},
-							  players => $Bpardy::game->{names},
-							  }));
-			  }
-			  when("question"){
-				  $client->put(encode_json({question =>Bpardy::ask($cmd[1])}));
-			  };
-			  default{
-				  $client->put("out ! reflect:$input");
-			  };
-		  };
+	  default{
+		$client->put("out ! reflect:$message");
 	  };
-	  default {
-		  announce("WebSocket in unknown state");
-		  $_[KERNEL]->yield("shutdown");
-	  };
+	};
   };
 }
 
