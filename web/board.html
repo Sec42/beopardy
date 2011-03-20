@@ -19,6 +19,13 @@
 	z-index:		10000;
 };
 
+#noscript {
+	display: block;
+	font-size: large;
+	color: #f55;
+	padding: 10px;
+};
+
 </STYLE>
 </HEAD>
 <BODY>
@@ -27,6 +34,7 @@
 <div class="foo">
 All the UI elements go here:
 <div id="reconnect" class="ui">Disconnected</div>
+<div id="noscript" class="noui">Maybe Javascript is disabled?</div>
 </div>
 
 <div id=canvas><!-- Stuff goes here --></div>
@@ -34,6 +42,7 @@ All the UI elements go here:
 
 <script type="text/javascript" src="jquery-1.4.2.min.js"></script>
 <script type = "text/javascript">
+$("#noscript").hide();
 
 var ws;
 // Create a table (CxP)
