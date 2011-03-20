@@ -28,7 +28,10 @@ POE::Component::Server::HTTP->new(
 POE::Component::Server::TCP->new( 
   Alias              => "ws_server",
   Port               => 8090,
-  InlineStates       => {send => \&ws_handle_send},
+  InlineStates       => {
+  							send => \&ws_handle_send,
+						 	announce => \&ws_handle_announce,
+						},
   ClientFilter		 => 'POE::Filter::Stream',
   ClientConnected    => \&ws_connected,
   ClientError        => \&ws_error,
@@ -40,7 +43,7 @@ POE::Component::Server::TCP->new(
 POE::Component::Server::TCP->new(
   Alias              => "chat_server",
   Port               => 32082,
-  InlineStates       => {send => \&handle_send},
+  InlineStates       => {send => \&handle_send, announce => \&handle_send},
   ClientConnected    => \&client_connected,
   ClientError        => \&client_error,
   ClientDisconnected => \&client_disconnected,
@@ -52,6 +55,7 @@ POE::Session->create(
 	inline_states => {
 		_start		=> \&cli_init,
 		send		=> \&console_output,
+		announce	=> \&console_announce,
 		cli_input	=> \&console_input,
 	},
 );
@@ -98,6 +102,10 @@ sub console_output {
 	my ($heap, $input) = @_[HEAP, ARG0];
 	$heap->{cli_wheel}->put("+ $input");
 }
+sub console_announce {
+	my ($heap, $input) = @_[HEAP, ARG0];
+	$heap->{cli_wheel}->put("+ ".ref($input)." - $input");
+}
 
 
 ###
@@ -133,25 +141,41 @@ my %wsstate;
 
 sub ws_handle_send {
   my ($heap, $message) = @_[HEAP, ARG0];
-  $heap->{client}->put($message);
+  my $session_id = $_[SESSION]->ID;
+  my $frame=$wsstate{$session_id}{frame};
+#  if(!defined($frame)){ print("No framing for WebSocket $session_id : $message\n"); };
+  $heap->{client}->put(
+		$frame->new($message)->to_string
+		);
+}
+
+sub ws_handle_announce {
+  my ($heap, $message) = @_[HEAP, ARG0];
+  my $session_id = $_[SESSION]->ID;
+  my $frame=$wsstate{$session_id}{frame};
+  $heap->{client}->put(
+		$frame->new(encode_json($message))->to_string
+		);
 }
 
 sub ws_connected {
   my $session_id = $_[SESSION]->ID;
   $wsstate{$session_id}{state} = "startup";
-  announce("WebSocket ($session_id) connected.");
+  console("WebSocket ($session_id) connected.");
 }
 
 sub ws_disconnected {
   my $session_id = $_[SESSION]->ID;
   delete $wsstate{$session_id};
-  announce("WebSocket ($session_id) disconnected.");
+  delete $users{$session_id};
+  console("WebSocket ($session_id) disconnected.");
 }
 
 sub ws_error {
   my $session_id = $_[SESSION]->ID;
   delete $wsstate{$session_id};
-  announce("WebSocket ($session_id) error-disconnected.");
+  delete $users{$session_id};
+  console("WebSocket ($session_id) error-disconnected.");
   $_[KERNEL]->yield("shutdown");
 }
 
@@ -167,8 +191,9 @@ sub ws_input {
 
 	if ($hs->is_done) {
 	  $wsstate{$session_id}{frame}=Protocol::WebSocket::Frame->new;
-	  announce("WSConnect done.");
 	  $_[HEAP]{client}->put($hs->to_string);
+	  console("WSConnect done.");
+	  $users{$session_id} = 1;
 	}
 	return;
   }
@@ -181,7 +206,7 @@ sub ws_input {
 
 	# XXX: Maybe move to separate sub?
 	my $client=$_[HEAP]->{client};
-	announce("socketinput: $message");
+	console("socketinput: $message");
 	my @cmd=split(/ /,$message);
 	given($cmd[0]){
 	  when("board"){
@@ -198,7 +223,8 @@ sub ws_input {
 			);
 	  };
 	  default{
-		$client->put("out ! reflect:$message");
+		die("unhandled");
+#		$client->put("out ! reflect:$message");
 	  };
 	};
   };
@@ -267,26 +293,38 @@ sub handle_command{
 	given($cmd[0]){
 		when ("load"){
 			my $q=Bpardy::load($cmd[1]);
-			announce("Loading result: $q");
+			console("Loading result: $q");
 		}
 		when ("question"){
 			my $q=Bpardy::ask($cmd[1]);
-			announce("Your q is:".encode_json($q));
+			console("Your q is:".encode_json($q));
 		};
 		when ("board"){
-			announce("Board: ".encode_json({board => $Bpardy::game->{board}}));
+			console("Board: ".encode_json({board => $Bpardy::game->{board}}));
+		};
+		when ("buzzer"){
+			announce({buzzer => 1});
 		};
 		default {
-			announce("Unknown command: >@cmd<");
+			console("Unknown command: >@cmd<");
 		};
 	};
 };
 
-sub announce {
+sub console { # Log something to everyone. (Maybe skip WebSocket?)
   my ($message) = @_;
 
   # Send it to everyone.
   foreach my $user (keys %users) {
 	  $poe_kernel->post($user => send => "$message");
+  }
+}
+
+sub announce { # Announce game events to everyone.
+  my ($message) = @_;
+
+  # Send it to everyone.
+  foreach my $user (keys %users) {
+	  $poe_kernel->post($user => "announce" , $message);
   }
 }

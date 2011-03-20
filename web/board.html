@@ -28,6 +28,14 @@
 	z-index:		100;
 }
 
+#bplayer {
+width: 100%;
+}
+
+#buzzer .button {
+	background-color: #222;
+}
+
 #qmask {
 	opacity:    	0.9;
 	top:			0;
@@ -59,6 +67,7 @@
 	background-color: #c33;
 }
 
+
 </STYLE>
 </HEAD>
 <BODY>
@@ -68,7 +77,12 @@
 <h1>All the UI elements go here:</h1>
 <div id="reconnect">Disconnected</div>
 <div id="noscript">Javascript needs to be enabled. Sorry. :-(</div>
-<div id="buzzer">Buzzertext</div>
+<div id="buzzer">
+<div id="bplayer">Nobody</div>
+<div id="bright" class="button">Right</div>
+<div id="bwrong  class="button">Wrong</div>
+<div id="boops   class="button">Oops</div>
+</div>
 <div id="qmask"><div id="question">text comes here</div></div>
 </div>
 
@@ -195,11 +209,16 @@ function start(){
 				};
 				$(mask).css("display","table");
 				$("#out").html("Qend");
+			}else if(result.buzzer){
+				$("#out").html("Buzzer");
+//				$("#buzzer").
+				$("#buzzer").show();
 			}else{
 				$("#out").html(JSON.stringify(result));
 			}
 		}else{
-			$("#out").html("It's not JSON, what's happening?");
+			$("#out").html("non-JSON received. See debug log.");
+			debug("[dbg] "+data);
 		};
 	};
 
