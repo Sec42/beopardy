@@ -91,42 +91,48 @@ width: 100%;
 $("#noscript").hide(); // Check if javascript (and jquery) work.
 
 function initui(){
+// Reconnect "button"
+	$("#reconnect").bind("click", function(){
+			start();
+			$("#reconnect").hide();
+		});
+
 // Right/Wrong/Oops widget after buzzering
 	$("#bright").keydown( function(ev){
-			if(ev.keyCode==39){
-				$("#bwrong").focus();
-			}else if (ev.keyCode==37){
-				$("#boops").focus();
-			};
+				if(ev.keyCode==39){
+					$("#bwrong").focus();
+				}else if (ev.keyCode==37){
+					$("#boops").focus();
+				};
 			});
 	$("#bwrong").keydown( function(ev){
-			if(ev.keyCode==39){
-				$("#boops").focus();
-			}else if (ev.keyCode==37){
-				$("#bright").focus();
-			};
+				if(ev.keyCode==39){
+					$("#boops").focus();
+				}else if (ev.keyCode==37){
+					$("#bright").focus();
+				};
 			});
 	$("#boops").keydown( function(ev){
-			if(ev.keyCode==39){
-				$("#bright").focus();
-			}else if (ev.keyCode==37){
-				$("#bwrong").focus();
-			};
+				if(ev.keyCode==39){
+					$("#bright").focus();
+				}else if (ev.keyCode==37){
+					$("#bwrong").focus();
+				};
 			});
 	$("#bright").click( function(){
-			$("#out").html("clicked right");
-			announce({answer: "right"});
-			$("#buzzer").hide();
+				$("#out").html("clicked right");
+				announce({answer: "right"});
+				$("#buzzer").hide();
 			});
 	$("#bwrong").click( function(){
-			$("#out").html("clicked wrong");
-			announce({answer: "wrong"});
-			$("#buzzer").hide();
+				$("#out").html("clicked wrong");
+				announce({answer: "wrong"});
+				$("#buzzer").hide();
 			});
 	$("#boops").click( function(){
-			$("#out").html("clicked oops");
-			announce({answer: "oops"});
-			$("#buzzer").hide();
+				$("#out").html("clicked oops");
+				announce({answer: "oops"});
+				$("#buzzer").hide();
 			});
 };
 
@@ -199,19 +205,15 @@ function mkBoard(boarddef,cats,players){
 	end.style.clear="both";
 	object.appendChild(end);
 }
-</script>
-
-<script type = "text/javascript">
 
 $(document).ready(function(){
-
-
-if ("WebSocket" in window) {
-	debug("Horray you have web sockets");
-	start();
-} else {
-	alert("You have no web sockets");
-};
+	if ("WebSocket" in window) {
+		debug("Horray you have web sockets");
+		start();
+	} else {
+		alert("You have no web sockets");
+	};
+});
 
 
 function start(){
@@ -268,12 +270,7 @@ function start(){
 	};
 
 	ws.onclose = function() {
-		debug(" socket closed");
-		$("#reconnect")
-				.bind("click",function(){
-					start();
-					$("#reconnect").hide();
-					});
+		debug("socket closed");
 		$("#reconnect").show();
 	};
 
@@ -284,7 +281,6 @@ function debug(str){
 };
 
 
-});
 
 
 

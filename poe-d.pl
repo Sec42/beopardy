@@ -146,8 +146,8 @@ my %wsstate;
 sub ws_handle_send {
   my ($heap, $message) = @_[HEAP, ARG0];
   my $session_id = $_[SESSION]->ID;
+  return if(!$users{$session_id}); # I'm a zombie
   my $frame=$wsstate{$session_id}{frame};
-  if(!defined($frame)){ print("No framing for WebSocket $session_id : $message\n"); return; };
   $heap->{client}->put(
 		$frame->new($message)->to_string
 		);
@@ -156,6 +156,7 @@ sub ws_handle_send {
 sub ws_handle_announce {
   my ($heap, $message) = @_[HEAP, ARG0];
   my $session_id = $_[SESSION]->ID;
+  return if(!$users{$session_id}); # I'm a zombie
   my $frame=$wsstate{$session_id}{frame};
   $heap->{client}->put(
 		$frame->new(encode_json($message))->to_string
