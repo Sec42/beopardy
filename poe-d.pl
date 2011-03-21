@@ -3,6 +3,8 @@ use warnings;
 use strict;
 use feature 'switch';
 use CGI qw(:standard);               # For HTML building functions.
+use Data::Dumper;
+$Data::Dumper::Indent = 1;
 use POE;
 use POE::Component::Server::HTTP;    # For the web interface.
 use POE::Component::Server::TCP;     # For the telnet interface.
@@ -104,7 +106,9 @@ sub console_output {
 }
 sub console_announce {
 	my ($heap, $input) = @_[HEAP, ARG0];
-	$heap->{cli_wheel}->put("+ ".ref($input)." - $input");
+	my $d= Data::Dumper->Dump([$input],["announcing"]);
+	$d=~s/\n/\r\n/g; # Needed due to raw tty mode.
+	$heap->{cli_wheel}->put("+ ".$d);
 }
 
 
@@ -143,7 +147,7 @@ sub ws_handle_send {
   my ($heap, $message) = @_[HEAP, ARG0];
   my $session_id = $_[SESSION]->ID;
   my $frame=$wsstate{$session_id}{frame};
-#  if(!defined($frame)){ print("No framing for WebSocket $session_id : $message\n"); };
+  if(!defined($frame)){ print("No framing for WebSocket $session_id : $message\n"); return; };
   $heap->{client}->put(
 		$frame->new($message)->to_string
 		);
@@ -217,14 +221,14 @@ sub ws_input {
 			  }))->to_string);
 	  }
 	  when("question"){
-		$client->put($frame->new(
-			  encode_json({question =>Bpardy::ask($cmd[1])})
-			  )->to_string
-			);
+#		$client->put($frame->new(
+#			  encode_json({question =>Bpardy::ask($cmd[1])})
+#			  )->to_string
+#			);
+			announce({buzzer => 1,foo => 2});
 	  };
 	  default{
-		die("unhandled");
-#		$client->put("out ! reflect:$message");
+		console("unhandled input from WebSocket: $message");
 	  };
 	};
   };

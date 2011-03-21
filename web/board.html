@@ -24,16 +24,12 @@
 	bottom:			0;
 	right:			0;
 	text-align:		center;
-	background-color: #222;
+	background-color: #aaa;
 	z-index:		100;
 }
 
 #bplayer {
 width: 100%;
-}
-
-#buzzer .button {
-	background-color: #222;
 }
 
 #qmask {
@@ -71,17 +67,20 @@ width: 100%;
 </STYLE>
 </HEAD>
 <BODY>
-<script type="text/javascript" src="jquery-1.4.2.min.js"></script>
+<script type="text/javascript" src="jquery-1.4.4.min.js"></script>
+<script type="text/javascript" src="jquery-ui-1.8.11.custom.min.js"></script>
 
 <div class="ui">
 <h1>All the UI elements go here:</h1>
 <div id="reconnect">Disconnected</div>
 <div id="noscript">Javascript needs to be enabled. Sorry. :-(</div>
 <div id="buzzer">
-<div id="bplayer">Nobody</div>
-<div id="bright" class="button">Right</div>
-<div id="bwrong  class="button">Wrong</div>
-<div id="boops   class="button">Oops</div>
+	<div id="bplayer">Nobody</div>
+	<div id="bbutton">
+		<button id="bright">Right</button>
+		<button id="bwrong">Wrong</button>
+		<button id="boops" >Oops</button>
+	</div>
 </div>
 <div id="qmask"><div id="question">text comes here</div></div>
 </div>
@@ -89,7 +88,47 @@ width: 100%;
 <div id=canvas><!-- Stuff goes here --></div>
 
 <script type = "text/javascript">
-$("#noscript").hide();
+$("#noscript").hide(); // Check if javascript (and jquery) work.
+
+function initui(){
+// Right/Wrong/Oops widget after buzzering
+	$("#bright").keydown( function(ev){
+			if(ev.keyCode==39){
+				$("#bwrong").focus();
+			}else if (ev.keyCode==37){
+				$("#boops").focus();
+			};
+			});
+	$("#bwrong").keydown( function(ev){
+			if(ev.keyCode==39){
+				$("#boops").focus();
+			}else if (ev.keyCode==37){
+				$("#bright").focus();
+			};
+			});
+	$("#boops").keydown( function(ev){
+			if(ev.keyCode==39){
+				$("#bright").focus();
+			}else if (ev.keyCode==37){
+				$("#bwrong").focus();
+			};
+			});
+	$("#bright").click( function(){
+			$("#out").html("clicked right");
+			announce({answer: "right"});
+			$("#buzzer").hide();
+			});
+	$("#bwrong").click( function(){
+			$("#out").html("clicked wrong");
+			announce({answer: "wrong"});
+			$("#buzzer").hide();
+			});
+	$("#boops").click( function(){
+			$("#out").html("clicked oops");
+			announce({answer: "oops"});
+			$("#buzzer").hide();
+			});
+};
 
 var ws;
 // Create a table (CxP)
@@ -98,6 +137,10 @@ function question(qid) {
 //	alert("qid:"+qid);
 	ws.send("question "+qid);
 }
+
+function announce(event){
+	ws.send( JSON.stringify(event));
+};
 
 function mkBoard(boarddef,cats,players){
 	var nocats=5; // No. of categories
@@ -181,6 +224,8 @@ function start(){
 	ws.send("board");
 	};
 
+	initui();
+
 	run = function() {
 		var val=$("#i1").val(); // read the entry
 		$("#i1").val("");       // and clear it
@@ -207,12 +252,12 @@ function start(){
 				}else{
 					$(q).html(result.question.text);
 				};
-				$(mask).css("display","table");
+				$(mask).css("display","table"); // instead of .show()
 				$("#out").html("Qend");
 			}else if(result.buzzer){
 				$("#out").html("Buzzer");
-//				$("#buzzer").
 				$("#buzzer").show();
+				$("#bright").focus();
 			}else{
 				$("#out").html(JSON.stringify(result));
 			}
