@@ -179,8 +179,8 @@ function mkBoard(boarddef,cats,players){
 	};
 	for (var y = 0; y < nopts; y++) {
 	  for (var x = 0; x < nocats; x++) {
-			var btn=document.createElement("div");
-			btn.style.border="solid 1px black";
+			var btn=document.createElement("button");
+//			btn.style.border="solid 1px black";
 			btn.style.float="left";
 			btn.style.width="19%";
 			btn.style.height="9%";
@@ -191,13 +191,34 @@ function mkBoard(boarddef,cats,players){
 			board[x][y]=btn;
 	  };
 	};
+	for (var y = 0; y < nopts; y++) {
+	  for (var x = 0; x < nocats; x++) {
+		  $(board[x][y]).keydown( {x: x, y: y}, function(ev){
+				x=ev.data.x;
+				y=ev.data.y;
+				if (ev.keyCode==40 || ev.keyCode == 74){
+					$(board[x][(y+1)%nocats]).focus();
+					return false;
+				}else if(ev.keyCode==39 || ev.keyCode == 76){
+					$(board[(x+1)%nopts][y]).focus();
+					return false;
+				}else if (ev.keyCode==38 || ev.keyCode == 75){
+					$(board[x][(y-1+nocats)%nocats]).focus();
+					return false;
+				}else if (ev.keyCode==37 || ev.keyCode == 72){
+					$(board[(x-1+nopts)%nopts][y]).focus();
+					return false;
+				};
+			});
+	  };
+	};
 	for (var x = 0 ; x<3; x++){
 			var btn=document.createElement("div");
 			btn.style.border="solid 1px black";
 			btn.style.float="left";
 			btn.style.width="32%";
 			btn.style.height="9%";
-			btn.innerHTML="Ply"+x+players; //players[x];
+			btn.innerHTML="Ply"+x+":"+players; //players[x];
 			object.appendChild(btn);
 	};
 
@@ -208,7 +229,6 @@ function mkBoard(boarddef,cats,players){
 
 $(document).ready(function(){
 	if ("WebSocket" in window) {
-		debug("Horray you have web sockets");
 		start();
 	} else {
 		alert("You have no web sockets");
