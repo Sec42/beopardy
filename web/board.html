@@ -5,7 +5,7 @@
 <LINK REV="made" HREF="mailto:sec@42.org">
 <STYLE TYPE="text/css" MEDIA="screen">
 
-.ui > * {
+#ui > * {
 	display: none;
 	position: absolute;
 }
@@ -28,8 +28,8 @@
 	z-index:		100;
 }
 
-#bplayer {
-width: 100%;
+#buzzer #bplayer {
+	width: 100%;
 }
 
 #qmask {
@@ -63,6 +63,41 @@ width: 100%;
 	background-color: #c33;
 }
 
+#canvas {
+	margin: auto;
+	width: 80%;
+	height: 80%;
+}
+
+#board * {
+	float: left;
+	box-sizing: border-box;
+	-moz-box-sizing: border-box;
+	border-collapse: collapse;
+}
+
+#board .gcategory {
+	background-color: #afa;
+	border: solid 1px black;
+}
+
+#board .gnewline {
+	clear: left;
+}
+
+#board .gbutton {
+#	border: solid 1px black;
+}
+
+#board .gscore {
+	border: solid 1px black;
+}
+
+#board .gscorespace {
+	float: left;
+}
+
+
 
 </STYLE>
 </HEAD>
@@ -70,7 +105,7 @@ width: 100%;
 <script type="text/javascript" src="jquery-1.4.4.min.js"></script>
 <script type="text/javascript" src="jquery-ui-1.8.11.custom.min.js"></script>
 
-<div class="ui">
+<div id="ui">
 <h1>All the UI elements go here:</h1>
 <div id="reconnect">Disconnected</div>
 <div id="noscript">Javascript needs to be enabled. Sorry. :-(</div>
@@ -99,23 +134,23 @@ function initui(){
 
 // Right/Wrong/Oops widget after buzzering
 	$("#bright").keydown( function(ev){
-				if(ev.keyCode==39){
+				if(ev.keyCode==39 || ev.keyCode == 76){
 					$("#bwrong").focus();
-				}else if (ev.keyCode==37){
+				}else if (ev.keyCode==37 || ev.keyCode == 72){
 					$("#boops").focus();
 				};
 			});
 	$("#bwrong").keydown( function(ev){
-				if(ev.keyCode==39){
+				if(ev.keyCode==39 || ev.keyCode == 76){
 					$("#boops").focus();
-				}else if (ev.keyCode==37){
+				}else if (ev.keyCode==37 || ev.keyCode == 72){
 					$("#bright").focus();
 				};
 			});
 	$("#boops").keydown( function(ev){
-				if(ev.keyCode==39){
+				if(ev.keyCode==39 || ev.keyCode == 76){
 					$("#bright").focus();
-				}else if (ev.keyCode==37){
+				}else if (ev.keyCode==37 || ev.keyCode == 72){
 					$("#bwrong").focus();
 				};
 			});
@@ -148,15 +183,34 @@ function announce(event){
 	ws.send( JSON.stringify(event));
 };
 
-function mkBoard(boarddef,cats,players){
-	var nocats=5; // No. of categories
-	var nopts=5;  // No. of points
 
-	function clearNode(node){
-		while (node.hasChildNodes()){
-			node.removeChild(node.firstChild);
-		};
+// general Utility functions.
+function clearNode(node){
+	while (node.hasChildNodes()){
+		node.removeChild(node.firstChild);
 	};
+};
+
+var board= {
+	nocats:5, // No. of categories
+	nopts:5,  // No. of points
+
+	canvas: document.getElementById('canvas'),
+	board:new Array,
+
+	// Sizes configurable
+	catheight:0.5,
+	ptsheight:0.8,
+	spacer:0.8, // 3/5 is "nice" for 3 players
+
+};
+
+board.height=100 / (board.nopts+board.catheight+board.ptsheight),
+
+board.mkBoard =
+function (boarddef,cats,players){
+	var nocats=this.nocats;
+	var nopts=this.nopts;
 
 	var canvas= document.getElementById('canvas');
 	if(!canvas)
@@ -166,66 +220,103 @@ function mkBoard(boarddef,cats,players){
 	object.id="board";
 	canvas.appendChild(object);
 
-	var board=new Array;
+	var board=this.board;
+	var height=this.height;
 
+	// Category title fields
 	for (var x = 0; x < nocats; x++) {
 		var btn=document.createElement("div");
-		btn.style.border="solid 1px black";
-		btn.style.float="left";
-		btn.style.width="19%";
-//		btn.style.height="9%";
+		btn.style.width=100 / nocats + "%";
+		btn.style.height= height*this.catheight+"%";
+		btn.className="gcategory";
 		btn.innerHTML=cats[x]; //"Cat "+(x+1);
 		object.appendChild(btn);
 	};
+	
+	// Board "answer" buttons
 	for (var y = 0; y < nopts; y++) {
 	  for (var x = 0; x < nocats; x++) {
-			var btn=document.createElement("button");
-//			btn.style.border="solid 1px black";
-			btn.style.float="left";
-			btn.style.width="19%";
-			btn.style.height="9%";
-			btn.innerHTML=boarddef[x][y].score;
-		$(btn).bind("click",{x:x, y:y},function (evt){question(boarddef[evt.data.x][evt.data.y].qid)});
-			object.appendChild(btn);
-			if(y==0) board[x]=new Array();
-			board[x][y]=btn;
+		  var btn=document.createElement("button");
+		  btn.style.width= 100/ nocats + "%";
+		  btn.style.height= height + "%";
+		  btn.className="gbutton";
+		  if(x==0){
+			  btn.className+=" gnewline";
+		  };
+		  btn.innerHTML=boarddef[x][y].score;
+
+		  $(btn).bind("click",{x: x, y: y}, function (ev){
+			  question(boarddef[ev.data.x][ev.data.y].qid);
+		  });
+		  $(btn).keydown( {x: x, y: y}, function(ev){
+			  x=ev.data.x;
+			  y=ev.data.y;
+			  if (ev.keyCode==40 || ev.keyCode == 74){
+				  $(board[x][(y+1)%nopts]).focus();
+				  return false;
+			  }else if(ev.keyCode==39 || ev.keyCode == 76){
+				  $(board[(x+1)%nocats][y]).focus();
+				  return false;
+			  }else if (ev.keyCode==38 || ev.keyCode == 75){
+				  $(board[x][(y-1+nopts)%nopts]).focus();
+				  return false;
+			  }else if (ev.keyCode==37 || ev.keyCode == 72){
+				  $(board[(x-1+nocats)%nocats][y]).focus();
+				  return false;
+			  };
+		  });
+		  object.appendChild(btn);
+		  if(y==0) board[x]=new Array();
+		  board[x][y]=btn;
 	  };
-	};
-	for (var y = 0; y < nopts; y++) {
-	  for (var x = 0; x < nocats; x++) {
-		  $(board[x][y]).keydown( {x: x, y: y}, function(ev){
-				x=ev.data.x;
-				y=ev.data.y;
-				if (ev.keyCode==40 || ev.keyCode == 74){
-					$(board[x][(y+1)%nocats]).focus();
-					return false;
-				}else if(ev.keyCode==39 || ev.keyCode == 76){
-					$(board[(x+1)%nopts][y]).focus();
-					return false;
-				}else if (ev.keyCode==38 || ev.keyCode == 75){
-					$(board[x][(y-1+nocats)%nocats]).focus();
-					return false;
-				}else if (ev.keyCode==37 || ev.keyCode == 72){
-					$(board[(x-1+nopts)%nopts][y]).focus();
-					return false;
-				};
-			});
-	  };
-	};
-	for (var x = 0 ; x<3; x++){
-			var btn=document.createElement("div");
-			btn.style.border="solid 1px black";
-			btn.style.float="left";
-			btn.style.width="32%";
-			btn.style.height="9%";
-			btn.innerHTML="Ply"+x+":"+players; //players[x];
-			object.appendChild(btn);
 	};
 
 	var end=document.createElement("br");
-	end.style.clear="both";
+	end.className="gnewline";
 	object.appendChild(end);
+	var bscores=document.createElement("div");
+	bscores.style.width= "100%";
+	bscores.id="bscores";
+	object.appendChild(bscores);
+	object.appendChild(end);
+
+	this.mkBoardPlayers(null);
+};
+
+board.mkBoardPlayers=
+function (players){
+	var object= document.getElementById('bscores');
+	if(!object)
+		throw("<div id=bscores> missing. mkBoard not run?");
+
+	var spacer=this.spacer;
+	var height=this.height;
+	var ptsheight=this.ptsheight;
+
+	// Player score displays
+	var noply=3;
+	for (var x = 0 ; x<noply; x++){
+			var btn=document.createElement("div");
+			btn.style.width=100/ noply*(spacer) + "%";
+			btn.style.height=height*ptsheight + "%";
+			btn.innerHTML="Ply"+x+":"+players; //players[x];
+			btn.className="gscore";
+			if(x==0){
+				btn.className+=" gnewline";
+			}else{
+				var space=document.createElement("div");
+				space.style.width=100/ noply*((1-spacer)*(1+1/(noply-1)))+ "%";
+				space.style.height=height + "%";
+//				space.innerHTML="dummy";
+				space.className="gscorespace";
+				object.appendChild(space);
+			};
+			object.appendChild(btn);
+	};
 }
+
+
+
 
 $(document).ready(function(){
 	if ("WebSocket" in window) {
@@ -261,7 +352,7 @@ function start(){
 			var result=JSON.parse(data);
 			if (result.board){
 				$("#out").html("Its a board");
-				mkBoard(result.board,result.categories,result.players);
+				board.mkBoard(result.board,result.categories,result.players);
 			}else if(result.question){
 				$("#out").html("Qstart");
 				var mask=$("#qmask");
