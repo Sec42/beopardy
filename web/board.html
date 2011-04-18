@@ -253,16 +253,20 @@ function (boarddef,cats,players){
 			  y=ev.data.y;
 			  if (ev.keyCode==40 || ev.keyCode == 74){
 				  $(board[x][(y+1)%nopts]).focus();
-				  return false;
+				  ev.preventDefault();
+//				  return false;
 			  }else if(ev.keyCode==39 || ev.keyCode == 76){
 				  $(board[(x+1)%nocats][y]).focus();
-				  return false;
+				  ev.preventDefault();
+//				  return false;
 			  }else if (ev.keyCode==38 || ev.keyCode == 75){
 				  $(board[x][(y-1+nopts)%nopts]).focus();
-				  return false;
+				  ev.preventDefault();
+//				  return false;
 			  }else if (ev.keyCode==37 || ev.keyCode == 72){
 				  $(board[(x-1+nocats)%nocats][y]).focus();
-				  return false;
+				  ev.preventDefault();
+//				  return false;
 			  };
 		  });
 		  object.appendChild(btn);
